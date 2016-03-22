@@ -7,9 +7,104 @@
     <script src="https://cdn.mxpnl.com/libs/mixpanel-platform/build/mixpanel-platform.v0.latest.min.js"></script>
   </head>
   <body class="mixpanel-platform-body">
-    <h1>Hello, World!</h1>
+    <div id="container" style="min-width: 310px; height: 400px; margin: 0 auto"></div>
+    <canvas id="myChart" width="800" height="800"></canvas>
+    <div class="ct-chart ct-perfect-fourth"></div>
     <script>
-      // Run queries and display results here
+      var iOSParams = {
+        from_date:'2016-03-07',
+        to_date:'2016-03-21',
+        limit:200,
+        where:'(properties["$os"] == "iPhone iOS" or properties["$os"] == "iPhone OS")',
+        interval:30
+      }
+      
+      var androidParams = {
+        from_date:'2016-03-07',
+        to_date:'2016-03-21',
+        limit:200,
+        where:'(properties["$os"] == "Android")',
+        interval:30
+      }
+      
+      var steps = [{"event":"member/dealer/mylistings"},{"event":"favorites"},{"event":"dealer/mutation/6-checkout"}]
+      var iOSSteps = [{"event":"member/dealer/mylistings"},{"event":"favorites"},{"event":"dealer/mutation/6-checkout"}]
+      var androidSteps = [{"event":"member/dealer/mylistings"},{"event":"favorites"},{"event":"dealer/mutation/6-checkout"}]
+      iOSSteps.push(iOSParams)
+      androidSteps.push(androidParams)
+      
+      var iOS = MP.api.funnel.apply(MP.api, iOSSteps)
+      var android = MP.api.funnel.apply(MP.api, androidSteps)
+      
+      var resultTransform = function (data){
+        results = []
+        _.each(data, function(el, idx){
+          _.each(el, function(obj, date){
+            results.push(obj.count)
+          })
+        })
+        return results
+      }
+      
+      $.when(iOS, android).done(function(iOS, android){
+        debugger
+        var iOSData = resultTransform(iOS)
+        var androidData = resultTransform(android)
+        var ctx = document.getElementById("myChart").getContext("2d");
+        
+        var labels =[]
+        
+        _.each(steps, function(el, idx){
+          if (el.event){
+            labels.push(el.event)
+          }
+        })
+        
+        $('#container').highcharts({
+          chart: {
+              type: 'column'
+          },
+          title: {
+              text: 'Activation Flow'
+          },
+          xAxis: {
+              categories: labels,
+              crosshair: true
+          },
+          yAxis: {
+              min: 0,
+              title: {
+                  text: 'Users'
+              }
+          },
+          tooltip: {
+              headerFormat: '<span style="font-size:10px">{point.key}</span><table>',
+              pointFormat: '<tr><td style="color:{series.color};padding:0">{series.name}: </td>' +
+                  '<td style="padding:0"><b>{point.y}</b></td></tr>',
+              footerFormat: '</table>',
+              shared: true,
+              useHTML: true
+          },
+          plotOptions: {
+              column: {
+                  pointPadding: 0.2,
+                  borderWidth: 0
+              }
+          },
+          series: [{
+              name: 'Android',
+              data: androidData
+  
+          }, {
+              name: 'iOS',
+              data: iOSData
+  
+          }]
+        });
+      })
+      
+      
+      
     </script>
   </body>
 </html>
